@@ -18,7 +18,7 @@ def add_sentiment(df, text_column='message'):
 
 # Optional: cache model to prevent reloading
 def get_emotion_model():
-    return pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1)
+    return pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1, device=-1)
 
 def add_emotions(df, text_column='question'):
     emotion_pipeline = get_emotion_model()
