@@ -35,7 +35,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSequenceClassification.from_pretrained(model_name)
 
 # ✅ Create pipeline
-sentiment_pipeline = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
+sentiment_pipeline = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer, device=-1)
 
 
 st.set_page_config(page_title="AI Coach Dashboard", layout="wide")
