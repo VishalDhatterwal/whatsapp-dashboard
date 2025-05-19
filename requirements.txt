@@ -22,7 +22,7 @@ GitPython==3.1.44
 google-pasta==0.2.0
 grpcio==1.71.0
 h5py==3.13.0
-huggingface-hub==0.30.2
+huggingface-hub
 idna==3.10
 importlib-metadata==6.11.0
 Jinja2==3.1.6
@@ -83,10 +83,10 @@ termcolor==3.0.1
 threadpoolctl==3.6.0
 tokenizers==0.21.1
 toml==0.10.2
-torch==2.7.0
+torch
 tornado==6.4.2
 tqdm==4.67.1
-transformers==4.51.3
+transformers
 typing_extensions==4.13.2
 tzdata==2025.2
 tzlocal==4.3.1
