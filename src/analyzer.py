@@ -1,6 +1,7 @@
 from transformers import pipeline
 import pandas as pd
 import re
+import torch
 
 # Sentiment analysis pipeline
 sentiment_analyzer = pipeline("sentiment-analysis")
@@ -17,8 +18,14 @@ def add_sentiment(df, text_column='message'):
     return df
 
 # Optional: cache model to prevent reloading
+# Ensure CPU is being used correctly
+if torch.cuda.is_available():
+    torch.device('cuda')
+else:
+    torch.device('cpu')
+
 def get_emotion_model():
-    return pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", top_k=1, device=-1)
+    return pipeline("text-classification", model="j-hartmann/emotion-english-distilroberta-base", device=-1)
 
 def add_emotions(df, text_column='question'):
     emotion_pipeline = get_emotion_model()
