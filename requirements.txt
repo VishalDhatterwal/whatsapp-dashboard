@@ -98,3 +98,4 @@ wheel==0.45.1
 wordcloud==1.9.4
 wrapt==1.17.2
 zipp==3.21.0
+huggingface_hub[hf_xet]
