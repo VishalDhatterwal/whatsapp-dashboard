@@ -173,146 +173,6 @@ try:
 except Exception as e:
     st.error(f"⚠️ Error in summary block: {e}")
 
-#gnrate wordcloud
-# === Word Cloud Generator with Lazy Loading ===
-st.subheader("☁️ Word Cloud Generator")
-
-# --- UI Elements for WordCloud options ---
-text_source = st.selectbox("Select message type", ["User Questions", "AI Responses", "Both"])
-ngram_choice = st.selectbox("Display as", ["Single Words", "2-word Phrases", "3-word Phrases"])
-
-# --- Stopwords Setup ---
-custom_stopwords = list(set(STOPWORDS).union({
-    "please", "thanks", "hi", "okay", "ok", "hello", "yeah", "sure", "hey"
-}))
-
-# --- Function to generate word cloud (Cached for performance) ---
-@st.cache_data
-def generate_wordcloud(text, title="Word Cloud", ngram_range=(1, 1), stopwords=None):
-    if not text.strip():
-        return None
-    vectorizer = CountVectorizer(ngram_range=ngram_range, stop_words=stopwords)
-    X = vectorizer.fit_transform([text])
-    word_freq = dict(zip(vectorizer.get_feature_names_out(), X.toarray()[0]))
-
-    wordcloud = WordCloud(
-        width=900,
-        height=400,
-        background_color='white',
-        colormap='plasma'
-    ).generate_from_frequencies(word_freq)
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation='bilinear')
-    ax.set_title(title)
-    ax.axis('off')
-    return fig
-
-# --- Lazy Loading Logic: Only generate when button is clicked ---
-if st.button("Generate WordCloud 🌐"):
-    st.write("Button Clicked!")  # For debugging
-    # Select text column(s)
-    if text_source == "User Questions":
-        messages = df['question'].dropna()
-    elif text_source == "AI Responses":
-        messages = df['response'].dropna()
-    else:
-        messages = pd.concat([df['question'], df['response']]).dropna()
-
-    # Set n-gram range
-    ngram_range = (1, 1) if ngram_choice == "Single Words" else (2, 2) if ngram_choice == "2-word Phrases" else (3, 3)
-
-    # Build the text and generate word cloud
-    text = " ".join(messages)
-    fig = generate_wordcloud(text, f"{text_source} - {ngram_choice}", ngram_range, custom_stopwords)
-
-    if fig:
-        with st.spinner("Generating word cloud..."):
-            st.pyplot(fig)
-        if st.download_button("📥 Download Word Cloud as PNG", data=fig_to_bytes(fig), file_name="wordcloud.png"):
-            st.success("✅ Downloaded successfully!")
-    else:
-        st.info("No valid text found for generating the word cloud.")
-else:
-    st.info("Click 'Generate WordCloud 🌐' to display the word cloud.")
-
-
-
-#word explorer from wordcloud
-st.subheader("🧠 Word Context Explorer")
-
-# Combine all text from user questions
-all_text = " ".join(filtered_df['question'].dropna()).lower()
-all_words = list(set(all_text.split()))
-selected_word = st.selectbox("Choose a word to explore", sorted(all_words))
-
-# Filter rows where the selected word appears in the question
-context_df = filtered_df[filtered_df['question'].str.contains(fr'\b{selected_word}\b', case=False, na=False)]
-
-st.write(f"Showing user questions containing the word: **{selected_word}**")
-st.dataframe(context_df[['timestamp', 'user', 'question', 'response']])
-
-#--------------------------------------------------------------------------
-# === Emotion Distribution ===
-st.subheader("🎉 Top Emojis Used by AI")
-
-emoji_counts = get_emoji_stats(filtered_df['response'])
-
-if emoji_counts:
-    emoji_df = pd.DataFrame(emoji_counts.items(), columns=['Emoji', 'Count']).sort_values(by='Count', ascending=False)
-    st.dataframe(emoji_df)
-    st.bar_chart(emoji_df.set_index('Emoji'))
-else:
-    st.info("No emojis found in the AI response.")
-
-# === Sentiment Distribution ===
-st.subheader("😊 Sentiment Distribution")
-if 'sentiment' in filtered_df.columns:
-    sentiment_counts = filtered_df['sentiment'].value_counts()
-    st.bar_chart(sentiment_counts)
-else:
-    st.info("No sentiment data available.")
-
-
-# --- Simple Conversation Drill-Down ---
-st.subheader("🧵 Conversation Drill-Down")
-
-if selected_user != "All":
-    convo_df = df[df['user'] == selected_user].sort_values(by='timestamp')
-    
-    if not convo_df.empty:
-        for _, row in convo_df.iterrows():
-            with st.container():
-                st.markdown(f"**🕒 {row['timestamp'].strftime('%Y-%m-%d %H:%M:%S')}**")
-                st.markdown(f"**🙋‍♂️ User:** {row['question']}")
-                st.markdown(f"**🤖 Bot:** {row['response']}")
-                st.markdown("---")
-    else:
-        st.info("No conversation history found for the selected user.")
-else:
-    st.info("Please select a specific user to view their conversation history.")
-
-
-
-
-
-# === Top Users by Question Volume ===
-st.subheader("👤 Top Users (By Question Count)")
-top_users = filtered_df['user'].value_counts().head(10)
-st.bar_chart(top_users)
-
-# === Daily Activity ===
-st.subheader("📈 Daily Question Volume")
-daily_activity = filtered_df.groupby(filtered_df['timestamp'].dt.date).size()
-st.line_chart(daily_activity)
-
-
-# Sentiment analysis
-st.subheader("📈 Sentiment Trends")
-daily_sentiment = filtered_df.groupby([filtered_df['timestamp'].dt.date, 'sentiment']).size().unstack().fillna(0)
-st.line_chart(daily_sentiment)
-
-
 # --- Topic Extraction with KeyBERT ---
 st.subheader("🎯 Top Topics and Keywords")
 
@@ -335,7 +195,6 @@ visualization_choice = st.radio("How would you like to visualize the key topics?
 custom_stopwords = {"please", "thanks", "hi", "okay", "ok", "hello", "yeah", "sure", "hey"}
 
 # Word cloud generator
-
 def generate_wordcloud(text, title="Word Cloud", stopwords=None):
     if not text.strip():
         return None
@@ -355,8 +214,6 @@ def generate_wordcloud(text, title="Word Cloud", stopwords=None):
     return fig
 
 # Convert plot to downloadable bytes
-
-
 def fig_to_bytes(fig):
     buf = BytesIO()
     fig.savefig(buf, format="png")
@@ -378,8 +235,7 @@ else:
     st.pyplot(fig)
     st.download_button("📥 Download Bar Chart", data=fig_to_bytes(fig), file_name="keywords_barchart.png")
 
-
-
+#clickable drill down 
 st.subheader("🔍 Clickable Drill-Down by User")
 
 # Count top users
@@ -436,11 +292,10 @@ if st.session_state.clicked_user:
     st.markdown(f"🧑‍💬 **User:** {selected_question}")
     st.markdown(f"🤖 **Bot:** {response}")
 
+st.subheader("Themes")
 
-st.subheader("Clusters")
-
-# Define categories with associated keywords
-categories = {
+# Define themes with associated keywords
+themes = {
     'Enquiry': ['how', 'what', 'can', 'please', 'when', 'why'],
     'Feedback': ['feedback', 'suggestion', 'review', 'rate', 'comment'],
     'Support Issue': ['help', 'issue', 'problem', 'trouble', 'support'],
@@ -453,59 +308,62 @@ def clean_text(text):
     text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
     return text
 
-# Function to classify text based on predefined categories
+# Function to classify text based on predefined themes
 def classify_text(text):
-    for category, keywords in categories.items():
+    for theme, keywords in themes.items():
         if any(keyword in text for keyword in keywords):
-            return category
-    return 'General Conversation'  # Default category if no match found
+            return theme
+    return 'General Conversation'  # Default theme if no match found
 
 # Preprocess and classify the data
 df['processed_question'] = df['question'].apply(clean_text)
-df['category'] = df['processed_question'].apply(classify_text)
+df['theme'] = df['processed_question'].apply(classify_text)
 
-# --- Display Cluster Buttons in the Middle ---
-st.subheader("🔹 **Clusters**")
-clicked_category = None
+# --- Display Theme Buttons in the Middle ---
+st.subheader("🔹 **Themes**")
+clicked_theme = None
 
-# Calculate counts for each category
-category_counts = df['category'].value_counts().to_dict()
+# Calculate counts for each theme
+theme_counts = df['theme'].value_counts().to_dict()
 
 # Display buttons in columns (middle-aligned)
-cols = st.columns(len(categories))
-for idx, (category, keywords) in enumerate(categories.items()):
-    count = category_counts.get(category, 0)
+cols = st.columns(len(themes))
+for idx, (theme, keywords) in enumerate(themes.items()):
+    count = theme_counts.get(theme, 0)
     with cols[idx]:
-        if st.button(f"{category} ({count})"):
-            clicked_category = category
+        if st.button(f"{theme} ({count})"):
+            clicked_theme = theme
 
-# --- Plot the Category Distribution ---
-st.subheader("📊 **Category Distribution**")
-category_counts_df = pd.DataFrame(list(category_counts.items()), columns=['Category', 'Count'])
-fig = px.bar(category_counts_df, x='Category', y='Count', title="Category Distribution")
+# --- Plot the Theme Distribution ---
+st.subheader("📊 **Theme Distribution**")
+theme_counts_df = pd.DataFrame(list(theme_counts.items()), columns=['Theme', 'Count'])
+fig = px.bar(theme_counts_df, x='Theme', y='Count', title="Theme Distribution")
 st.plotly_chart(fig, use_container_width=True)
 
-# --- Display Filtered Data ---
-if clicked_category:
-    st.subheader(f"📝 Showing Messages for Category: **{clicked_category}**")
-    filtered_category_df = df[df['category'] == clicked_category]
-    st.dataframe(filtered_category_df[['timestamp', 'user', 'question', 'response']])
+# === Sentiment Distribution ===
+st.subheader("😊 Sentiment Distribution")
+if 'sentiment' in filtered_df.columns:
+    sentiment_counts = filtered_df['sentiment'].value_counts()
+    st.bar_chart(sentiment_counts)
 else:
-    st.info("")
+    st.info("No sentiment data available.")
 
 
-# Call the enhanced clustered wordcloud function
-clustered_text, cluster_keywords = generate_enhanced_clustered_wordcloud(filtered_df)
+# === Top Users by Question Volume ===
+st.subheader("👤 Top Users (By Question Count)")
+top_users = filtered_df['user'].value_counts().head(10)
+st.bar_chart(top_users)
 
-# Display the clusters with enhanced UI
-st.markdown("## 🗂️ **Cluster Insights**")
-for cluster_num, texts in clustered_text.items():
-    with st.expander(f"📌 **Cluster {cluster_num} — Topics: {cluster_keywords[cluster_num]}**", expanded=False):
-        st.markdown(f"**Top Messages:**")
-        for msg in texts[:5]:  # Display the first 5 messages for each cluster
-            st.write(f"- {msg}")
+# === Daily Activity ===
+st.subheader("📈 Daily Question Volume")
+daily_activity = filtered_df.groupby(filtered_df['timestamp'].dt.date).size()
+st.line_chart(daily_activity)
 
 
+# Sentiment analysis
+st.subheader("📈 Sentiment Trends")
+daily_sentiment = filtered_df.groupby([filtered_df['timestamp'].dt.date, 'sentiment']).size().unstack().fillna(0)
+st.line_chart(daily_sentiment)
 
 
 # Display data
