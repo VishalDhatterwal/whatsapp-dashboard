@@ -112,13 +112,13 @@ if uploaded_file:
 # --- Sidebar Filters (Optimized with Caching) ---
 
 def get_sidebar_data(df):
-    #type_options = df['type'].dropna().unique().tolist()
+    type_options = df['type'].dropna().unique().tolist()
     min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
     all_users = sorted(df['user'].dropna().unique())
-    return min_date, max_date, all_users
+    return type_options, min_date, max_date, all_users
 
 # Retrieve cached sidebar data
-min_date, max_date, all_users = get_sidebar_data(df)
+type_options, min_date, max_date, all_users = get_sidebar_data(df)
 
 # Sidebar for Message Type
 st.sidebar.subheader('🧺 Filter by Message Type')
