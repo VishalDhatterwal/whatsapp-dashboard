@@ -2,6 +2,11 @@ import pandas as pd
 
 def parse_uploaded_excel(file):
     df = pd.read_excel(file)
+
+    # Normalize column names to lowercase and strip spaces
+    df.columns = df.columns.str.strip().str.lower()
+
+
     df.rename(columns={
         "TimeStamp": "timestamp",
         "User Phone": "user_phone",
