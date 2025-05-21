@@ -77,6 +77,19 @@ def generate_wordcloud(text, title="Word Cloud", ngram_range=(1, 1), stopwords=N
 uploaded_file = st.file_uploader("Upload the Excel file (AI Expert Coach Feedback)", type="xlsx")
 
 
+if uploaded_file is not None:
+    df = parse_uploaded_excel(uploaded_file)
+    st.success("✅ File uploaded successfully!")
+else:
+    default_path = "data/feedback1.xlsx"  # Make sure this file exists
+    try:
+        df = parse_uploaded_excel(default_path)
+        st.info("📂 No file uploaded. Loaded default file automatically.")
+    except FileNotFoundError:
+        st.error("⚠️ No file uploaded and default file not found!")
+        st.stop()
+
+
 if uploaded_file:
     df = parse_uploaded_excel(uploaded_file)
 
@@ -94,9 +107,7 @@ if uploaded_file:
     df = extract_response_emojis(df)
 
     st.success("✅ File processed successfully!")
-else:
-    st.warning("Please upload an Excel or .XLSX file to begin.")
-    st.stop()
+
 
 # --- Sidebar Filters (Optimized with Caching) ---
 @st.cache_data
