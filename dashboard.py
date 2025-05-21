@@ -81,7 +81,7 @@ if uploaded_file is not None:
     df = parse_uploaded_excel(uploaded_file)
     st.success("✅ File uploaded successfully!")
 else:
-    default_path = "data/feedback1.xlsx"  # Make sure this file exists
+    default_path = "data/feedback1.xlsx"
     try:
         df = parse_uploaded_excel(default_path)
         st.info("📂 No file uploaded. Loaded default file automatically.")
@@ -89,35 +89,34 @@ else:
         st.error("⚠️ No file uploaded and default file not found!")
         st.stop()
 
+# ✅ Process DataFrame in all cases (uploaded or default)
+df = clean_chat(df)
+df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+df = df.dropna(subset=['timestamp'])
 
-if uploaded_file:
-    df = parse_uploaded_excel(uploaded_file)
+df = add_sentiment(df, text_column='question')
+df = add_emotions(df, text_column='question')
+df = classify_message_type(df)
 
-    # Apply your logic
-    df = clean_chat(df)
+df = extract_response_emojis(df)
 
-    df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-    df = df.dropna(subset=['timestamp'])
-
-
-
-    df = add_sentiment(df, text_column='question')
-    df = add_emotions(df, text_column='question')
-    df = classify_message_type(df)
-    df = extract_response_emojis(df)
-
-    st.success("✅ File processed successfully!")
+st.success("✅ File processed successfully!")
 
 
 # --- Sidebar Filters (Optimized with Caching) ---
-
+@st.cache_data
 def get_sidebar_data(df):
-    type_options = df['type'].dropna().unique().tolist() 
+    if 'type' not in df.columns:
+        st.warning("⚠️ 'type' column not found in the data.")
+        type_options = []
+    else:
+        type_options = df['type'].dropna().unique().tolist()
+
     min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
     all_users = sorted(df['user'].dropna().unique())
     return type_options, min_date, max_date, all_users
 
-# Retrieve cached sidebar data
+# Sidebar Data
 type_options, min_date, max_date, all_users = get_sidebar_data(df)
 
 # Sidebar for Message Type
