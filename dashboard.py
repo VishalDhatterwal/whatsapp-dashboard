@@ -112,26 +112,13 @@ if uploaded_file:
 # --- Sidebar Filters (Optimized with Caching) ---
 
 def get_sidebar_data(df):
-    # Check if 'type' column exists
-    if 'type' in df.columns:
-        type_options = df['type'].dropna().unique().tolist()
-    else:
-        type_options = []
-
-    # Check if 'timestamp' exists
-    if 'timestamp' in df.columns:
-        min_date = df['timestamp'].min().date()
-        max_date = df['timestamp'].max().date()
-    else:
-        min_date = max_date = None
-
-    # Check if 'user' exists
-    if 'user' in df.columns:
-        all_users = sorted(df['user'].dropna().unique())
-    else:
-        all_users = []
-
+    # Protect against missing columns
+    type_options = df['type'].dropna().unique().tolist() if 'type' in df.columns else []
+    min_date = df['timestamp'].min().date() if 'timestamp' in df.columns else None
+    max_date = df['timestamp'].max().date() if 'timestamp' in df.columns else None
+    all_users = sorted(df['user'].dropna().unique()) if 'user' in df.columns else []
     return type_options, min_date, max_date, all_users
+
 
 
 # Retrieve cached sidebar data
@@ -142,7 +129,8 @@ if type_options:
     st.sidebar.subheader('🧺 Filter by Message Type')
     selected_types = st.sidebar.multiselect('Select type(s)', options=type_options, default=type_options)
 else:
-    selected_types = []  # fallback
+    st.sidebar.warning("No 'type' column found in data.")
+    selected_types = []
 
 # Sidebar for Date Range
 st.sidebar.subheader('📆 Date Range')
