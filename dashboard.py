@@ -140,6 +140,57 @@ if selected_user != "All":
 
 filtered_df = filtered_df[filtered_df['type'].isin(selected_types)]
 
+# Define brand-based themes
+brand_themes = {
+    'Centrum': ['centrum'],
+    'Paradontax': ['paradontax'],
+    'Sensodyne': ['sensodyne'],
+    'Otrivin': ['otrivin'],
+    'Eno': ['eno'],
+    'Crocin': ['crocin']
+}
+
+# Function to clean and preprocess text
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r'[^\w\s]', '', text)
+    return text
+
+# Function to classify text based on brand mentions
+def classify_brand_theme(text):
+    for brand, keywords in brand_themes.items():
+        if any(keyword in text for keyword in keywords):
+            return brand
+    return 'Other'  # For unmatched rows
+
+
+# Clean and classify
+df['processed_question'] = df['question'].apply(clean_text)
+df['brand_theme'] = df['processed_question'].apply(classify_brand_theme)
+
+# Display brand themes
+st.subheader("🔹 **Brand Themes**")
+clicked_brand = None
+
+# Count for each brand
+brand_counts = df['brand_theme'].value_counts().to_dict()
+
+# Create columns dynamically based on number of brands
+cols = st.columns(len(brand_themes))
+for idx, brand in enumerate(brand_themes.keys()):
+    count = brand_counts.get(brand, 0)
+    with cols[idx]:
+        if st.button(f"{brand} ({count})"):
+            clicked_brand = brand
+
+# Optionally show filtered data
+if clicked_brand:
+    st.write(f"### Messages mentioning **{clicked_brand}**:")
+    st.dataframe(df[df['brand_theme'] == clicked_brand][['question']])
+
+
+
+
 
 try:
     st.subheader("📈 User Interaction Summary")
