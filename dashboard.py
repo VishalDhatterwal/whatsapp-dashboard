@@ -296,7 +296,7 @@ messages = " ".join(filtered_df['question'].dropna().tolist())
 kw_model = KeyBERT()
 
 # Extract top 10 keywords
-#keywords = kw_model.extract_keywords(messages, top_n=10)
+keywords = kw_model.extract_keywords()
 
 # Display extracted keywords with scores
 st.markdown("### 🗣️ Key Topics in Patient Messages")
