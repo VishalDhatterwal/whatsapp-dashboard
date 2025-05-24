@@ -478,5 +478,3 @@ if st.session_state.clicked_user:
     st.markdown(f"🕒 **{timestamp}**")
     st.markdown(f"🧑‍💬 **User:** {selected_question}")
     st.markdown(f"🤖 **Bot:** {response}")
-
-st.subheader("Themes")
