@@ -140,7 +140,7 @@ if selected_user != "All":
 
 filtered_df = filtered_df[filtered_df['type'].isin(selected_types)]
 
-# Define brand-based themes
+# --- Brand Setup ---
 brand_themes = {
     'Centrum': ['centrum'],
     'Paradontax': ['paradontax'],
@@ -150,45 +150,94 @@ brand_themes = {
     'Crocin': ['crocin']
 }
 
-# Function to clean and preprocess text
+subthemes = [
+    "Pricing Enquiry",
+    "Product Information",
+    "Composition/Ingredients",
+    "Usage/Benefits, Dosage",
+    "Safety/Side Effects"
+]
+
 def clean_text(text):
+    import re
     text = str(text).lower()
     text = re.sub(r'[^\w\s]', '', text)
     return text
 
-# Function to classify text based on brand mentions
 def classify_brand_theme(text):
     for brand, keywords in brand_themes.items():
         if any(keyword in text for keyword in keywords):
             return brand
-    return 'Other'  # For unmatched rows
+    return 'Other'
 
+def assign_subtheme(question):
+    text = question.lower()
+    if any(kw in text for kw in ["price", "cost", "affordable"]):
+        return "Pricing Enquiry"
+    elif any(kw in text for kw in ["where", "stock", "available", "buy"]):
+        return "Product Information"
+    elif any(kw in text for kw in ["ingredients", "composition", "formulation"]):
+        return "Composition/Ingredients"
+    elif any(kw in text for kw in ["use", "benefit", "dosage", "how much"]):
+        return "Usage/Benefits, Dosage"
+    elif any(kw in text for kw in ["side effect", "safe", "safety", "reaction"]):
+        return "Safety/Side Effects"
+    else:
+        return "Other"
 
-# Clean and classify
+# --- Apply brand logic ---
 df['processed_question'] = df['question'].apply(clean_text)
 df['brand_theme'] = df['processed_question'].apply(classify_brand_theme)
+df['subtheme'] = df['question'].apply(assign_subtheme)
 
-# Display brand themes
-st.subheader("🔹 **Brand Themes**")
-clicked_brand = None
+# --- Streamlit UI ---
+st.subheader("🔹 Brand Themes")
 
-# Count for each brand
+if 'selected_brand' not in st.session_state:
+    st.session_state.selected_brand = None
+if 'selected_subtheme' not in st.session_state:
+    st.session_state.selected_subtheme = None
+
 brand_counts = df['brand_theme'].value_counts().to_dict()
-
-# Create columns dynamically based on number of brands
 cols = st.columns(len(brand_themes))
+
+# --- Brand Buttons with Highlight ---
 for idx, brand in enumerate(brand_themes.keys()):
     count = brand_counts.get(brand, 0)
+    label = f"{brand} ({count})"
     with cols[idx]:
-        if st.button(f"{brand} ({count})"):
-            clicked_brand = brand
+        if st.session_state.selected_brand == brand:
+            st.markdown(f"<button style='background-color:#4CAF50;color:white;border:none;padding:0.5em 1em;border-radius:5px'>{label}</button>", unsafe_allow_html=True)
+        else:
+            if st.button(label, key=f"top_brand_btn_{idx}_{brand}"):
+                st.session_state.selected_brand = brand
+                st.session_state.selected_subtheme = None
 
-# Optionally show filtered data
-if clicked_brand:
-    st.write(f"### Messages mentioning **{clicked_brand}**:")
-    st.dataframe(df[df['brand_theme'] == clicked_brand][['question']])
+# --- Sub-Themes Section ---
+if st.session_state.selected_brand:
+    st.markdown(f"### Sub-Themes for {st.session_state.selected_brand}")
 
+    sub_cols = st.columns(2)
+    for idx, sub in enumerate(subthemes):
+        with sub_cols[idx % 2]:
+            if st.session_state.selected_subtheme == sub:
+                st.markdown(f"<button style='background-color:#FF6347;color:white;border:none;padding:0.5em 1em;border-radius:5px'>{sub}</button>", unsafe_allow_html=True)
+            else:
+                if st.button(sub, key=f"subtheme_btn_{idx}"):
+                    st.session_state.selected_subtheme = sub
 
+# --- Filtered Output Section ---
+if st.session_state.selected_brand and st.session_state.selected_subtheme:
+    st.markdown(f"### 🔍 Questions for **{st.session_state.selected_brand}** - **{st.session_state.selected_subtheme}**")
+    filtered_df = df[
+        (df['brand_theme'] == st.session_state.selected_brand) &
+        (df['subtheme'] == st.session_state.selected_subtheme)
+    ]
+
+    if not filtered_df.empty:
+        st.dataframe(filtered_df[['question', 'response']])
+    else:
+        st.info("No matching data found.")
 
 
 
