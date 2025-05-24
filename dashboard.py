@@ -296,12 +296,7 @@ messages = " ".join(filtered_df['question'].dropna().tolist())
 kw_model = KeyBERT()
 
 # Extract top 10 keywords
-keywords = kw_model.extract_keywords()
-
-# Display extracted keywords with scores
-st.markdown("### 🗣️ Key Topics in Patient Messages")
-for kw, score in keywords:
-    st.write(f"- {kw} ({score:.2f})")
+keywords = kw_model.extract_keywords(messages, top_n=10)
 
 # --- Visualization Section ---
 visualization_choice = st.radio("How would you like to visualize the key topics?", ["Word Cloud", "Bar Chart"])
@@ -347,6 +342,7 @@ else:
     ax.set_xlabel("Score")
     st.pyplot(fig)
     st.download_button("📥 Download Bar Chart", data=fig_to_bytes(fig), file_name="keywords_barchart.png")
+
 
 # === Top Users by Question Volume ===
 st.subheader("👤 Top Users (By Question Count)")
