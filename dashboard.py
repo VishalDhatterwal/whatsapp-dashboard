@@ -296,7 +296,7 @@ messages = " ".join(filtered_df['question'].dropna().tolist())
 kw_model = KeyBERT()
 
 # Extract top 10 keywords
-keywords = kw_model.extract_keywords(messages, top_n=10)
+#keywords = kw_model.extract_keywords(messages, top_n=10)
 
 # Display extracted keywords with scores
 st.markdown("### 🗣️ Key Topics in Patient Messages")
@@ -348,8 +348,86 @@ else:
     st.pyplot(fig)
     st.download_button("📥 Download Bar Chart", data=fig_to_bytes(fig), file_name="keywords_barchart.png")
 
+# === Top Users by Question Volume ===
+st.subheader("👤 Top Users (By Question Count)")
+top_users = filtered_df['user'].value_counts().head(10)
+st.bar_chart(top_users)
+
+# === Daily Activity ===
+st.subheader("📈 Daily Question Volume")
+daily_activity = filtered_df.groupby(filtered_df['timestamp'].dt.date).size()
+st.line_chart(daily_activity)
+
+
+# === Sentiment Distribution ===
+st.subheader("😊 Sentiment Distribution")
+if 'sentiment' in filtered_df.columns:
+    sentiment_counts = filtered_df['sentiment'].value_counts()
+    st.bar_chart(sentiment_counts)
+else:
+    st.info("No sentiment data available.")
+
+
+# Sentiment analysis
+st.subheader("📈 Sentiment Trends")
+daily_sentiment = filtered_df.groupby([filtered_df['timestamp'].dt.date, 'sentiment']).size().unstack().fillna(0)
+st.line_chart(daily_sentiment)
+
+
+# Display data
+st.subheader("📄 Filtered Feedback Data")
+st.dataframe(filtered_df)
+
+
+# Define themes with associated keywords
+themes = {
+    'Enquiry': ['how', 'what', 'can', 'please', 'when', 'why'],
+    'Feedback': ['feedback', 'suggestion', 'review', 'rate', 'comment'],
+    'Support Issue': ['help', 'issue', 'problem', 'trouble', 'support'],
+    'General Conversation': ['hello', 'hi', 'thanks', 'ok', 'bye', 'good', 'great']
+}
+
+# Function to clean and preprocess text
+def clean_text(text):
+    text = text.lower()
+    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+    return text
+
+# Function to classify text based on predefined themes
+def classify_text(text):
+    for theme, keywords in themes.items():
+        if any(keyword in text for keyword in keywords):
+            return theme
+    return 'General Conversation'  # Default theme if no match found
+
+# Preprocess and classify the data
+df['processed_question'] = df['question'].apply(clean_text)
+df['theme'] = df['processed_question'].apply(classify_text)
+
+# --- Display Theme Buttons in the Middle ---
+st.subheader("🔹 **Themes**")
+clicked_theme = None
+
+# Calculate counts for each theme
+theme_counts = df['theme'].value_counts().to_dict()
+
+# Display buttons in columns (middle-aligned)
+cols = st.columns(len(themes))
+for idx, (theme, keywords) in enumerate(themes.items()):
+    count = theme_counts.get(theme, 0)
+    with cols[idx]:
+        if st.button(f"{theme} ({count})"):
+            clicked_theme = theme
+
+# --- Plot the Theme Distribution ---
+st.subheader("📊 **Theme Distribution**")
+theme_counts_df = pd.DataFrame(list(theme_counts.items()), columns=['Theme', 'Count'])
+fig = px.bar(theme_counts_df, x='Theme', y='Count', title="Theme Distribution")
+st.plotly_chart(fig, use_container_width=True)
+
+
 #clickable drill down 
-st.subheader("🔍 Clickable Drill-Down by User")
+st.subheader("🔍 Overall Visualization Clickable Drill-Down by User")
 
 # Count top users
 top_users = df['user'].value_counts().reset_index()
@@ -406,79 +484,3 @@ if st.session_state.clicked_user:
     st.markdown(f"🤖 **Bot:** {response}")
 
 st.subheader("Themes")
-
-# Define themes with associated keywords
-themes = {
-    'Enquiry': ['how', 'what', 'can', 'please', 'when', 'why'],
-    'Feedback': ['feedback', 'suggestion', 'review', 'rate', 'comment'],
-    'Support Issue': ['help', 'issue', 'problem', 'trouble', 'support'],
-    'General Conversation': ['hello', 'hi', 'thanks', 'ok', 'bye', 'good', 'great']
-}
-
-# Function to clean and preprocess text
-def clean_text(text):
-    text = text.lower()
-    text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
-    return text
-
-# Function to classify text based on predefined themes
-def classify_text(text):
-    for theme, keywords in themes.items():
-        if any(keyword in text for keyword in keywords):
-            return theme
-    return 'General Conversation'  # Default theme if no match found
-
-# Preprocess and classify the data
-df['processed_question'] = df['question'].apply(clean_text)
-df['theme'] = df['processed_question'].apply(classify_text)
-
-# --- Display Theme Buttons in the Middle ---
-st.subheader("🔹 **Themes**")
-clicked_theme = None
-
-# Calculate counts for each theme
-theme_counts = df['theme'].value_counts().to_dict()
-
-# Display buttons in columns (middle-aligned)
-cols = st.columns(len(themes))
-for idx, (theme, keywords) in enumerate(themes.items()):
-    count = theme_counts.get(theme, 0)
-    with cols[idx]:
-        if st.button(f"{theme} ({count})"):
-            clicked_theme = theme
-
-# --- Plot the Theme Distribution ---
-st.subheader("📊 **Theme Distribution**")
-theme_counts_df = pd.DataFrame(list(theme_counts.items()), columns=['Theme', 'Count'])
-fig = px.bar(theme_counts_df, x='Theme', y='Count', title="Theme Distribution")
-st.plotly_chart(fig, use_container_width=True)
-
-# === Sentiment Distribution ===
-st.subheader("😊 Sentiment Distribution")
-if 'sentiment' in filtered_df.columns:
-    sentiment_counts = filtered_df['sentiment'].value_counts()
-    st.bar_chart(sentiment_counts)
-else:
-    st.info("No sentiment data available.")
-
-
-# === Top Users by Question Volume ===
-st.subheader("👤 Top Users (By Question Count)")
-top_users = filtered_df['user'].value_counts().head(10)
-st.bar_chart(top_users)
-
-# === Daily Activity ===
-st.subheader("📈 Daily Question Volume")
-daily_activity = filtered_df.groupby(filtered_df['timestamp'].dt.date).size()
-st.line_chart(daily_activity)
-
-
-# Sentiment analysis
-st.subheader("📈 Sentiment Trends")
-daily_sentiment = filtered_df.groupby([filtered_df['timestamp'].dt.date, 'sentiment']).size().unstack().fillna(0)
-st.line_chart(daily_sentiment)
-
-
-# Display data
-st.subheader("📄 Filtered Feedback Data")
-st.dataframe(filtered_df)
