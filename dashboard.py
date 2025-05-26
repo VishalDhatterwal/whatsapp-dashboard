@@ -27,58 +27,10 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.cluster import KMeans
 from src.utils import show_brand_drilldown, show_interaction_summary
 
-
-from transformers import pipeline, AutoModelForSequenceClassification, AutoTokenizer
-
-# ✅ Specify the local cache path of the model
-model_name = "distilbert-base-uncased-finetuned-sst-2-english"
-
-# ✅ Initialize tokenizer and model manually
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForSequenceClassification.from_pretrained(model_name)
-
-# ✅ Create pipeline
-sentiment_pipeline = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer, device=-1)
-
-
 st.set_page_config(page_title="AI Coach Dashboard", layout="wide")
 st.title("🤖 AI Expert Coach Feedback Dashboard")
 
-@st.cache_data
-def fig_to_bytes(fig):
-    buf = BytesIO()
-    fig.savefig(buf, format="png")
-    buf.seek(0)
-    return buf
-
-#generate wordcloud
-def generate_wordcloud(text, title="Word Cloud", ngram_range=(1, 1), stopwords=None):
-    if not text.strip():
-        return None
-
-    # Use CountVectorizer to extract word/phrase frequencies
-    vectorizer = CountVectorizer(ngram_range=ngram_range, stop_words=stopwords)
-    X = vectorizer.fit_transform([text])
-    word_freq = dict(zip(vectorizer.get_feature_names_out(), X.toarray()[0]))
-
-    # Generate word cloud
-    wordcloud = WordCloud(
-        width=900,
-        height=400,
-        background_color='white',
-        colormap='plasma'
-    ).generate_from_frequencies(word_freq)
-
-    
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.imshow(wordcloud, interpolation='bilinear')
-    ax.set_title(title)
-    ax.axis('off')
-    return fig
-
-
 uploaded_file = st.file_uploader("Upload the Excel file (AI Expert Coach Feedback)", type="xlsx")
-
 
 if uploaded_file is not None:
     df = parse_uploaded_excel(uploaded_file)
@@ -107,41 +59,24 @@ st.success("✅ File processed successfully!")
 
 
 # --- Sidebar Filters (Optimized with Caching) ---
-@st.cache_data
-def get_sidebar_data(df):
-    if 'type' not in df.columns:
-        st.warning("⚠️ 'type' column not found in the data.")
-        type_options = []
-    else:
-        type_options = df['type'].dropna().unique().tolist()
 
-    min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
-    all_users = sorted(df['user'].dropna().unique())
-    return type_options, min_date, max_date, all_users
+# ================== Sidebar Filters ==================
+st.sidebar.header("📌 Filters")
+unique_types = df['type'].dropna().unique().tolist()
+min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
+all_users = sorted(df['user'].dropna().unique())
 
-# Sidebar Data
-type_options, min_date, max_date, all_users = get_sidebar_data(df)
-
-# Sidebar for Message Type
-st.sidebar.subheader('🧺 Filter by Message Type')
-selected_types = st.sidebar.multiselect('Select type(s)', options=type_options, default=type_options)
-
-# Sidebar for Date Range
-st.sidebar.subheader('📆 Date Range')
-start_date, end_date = st.sidebar.date_input('Select range', [min_date, max_date])
-
-# Sidebar for User Selection with Search
-st.sidebar.subheader('👤 Select User')
-user_search = st.sidebar.text_input('🔍 Search User')
+selected_types = st.sidebar.multiselect("Message Type", unique_types, default=unique_types)
+start_date, end_date = st.sidebar.date_input("📆 Date Range", [min_date, max_date])
+user_search = st.sidebar.text_input("🔍 Search User")
 filtered_users = ['All'] + [u for u in all_users if user_search.lower() in u.lower()]
-selected_user = st.sidebar.selectbox('User', filtered_users)  
+selected_user = st.sidebar.selectbox("User", filtered_users)
 
-# Apply filters
 filtered_df = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
 if selected_user != "All":
     filtered_df = filtered_df[filtered_df['user'] == selected_user]
-
 filtered_df = filtered_df[filtered_df['type'].isin(selected_types)]
+
 
 # --- Brand Setup ---
 brand_themes = {
