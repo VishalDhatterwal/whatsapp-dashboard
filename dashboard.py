@@ -12,10 +12,7 @@ import matplotlib.pyplot as plt
 from wordcloud import WordCloud, STOPWORDS
 from src.analyzer import add_sentiment, add_emotions, classify_message_type,extract_response_emojis
 from src.cleaner import clean_chat_keep_emojis as clean_chat
-from clustered_wordcloud import generate_enhanced_clustered_wordcloud
 from src.parser import parse_uploaded_excel
-from sklearn.feature_extraction.text import CountVectorizer
-from wordcloud import WordCloud
 from keybert import KeyBERT
 from collections import Counter
 import re
@@ -30,52 +27,56 @@ from src.utils import show_brand_drilldown, show_interaction_summary
 st.set_page_config(page_title="AI Coach Dashboard", layout="wide")
 st.title("🤖 AI Expert Coach Feedback Dashboard")
 
-uploaded_file = st.file_uploader("Upload the Excel file (AI Expert Coach Feedback)", type="xlsx")
+@st.cache_data
+def load_data(uploaded_file):
+    if uploaded_file is not None:
+        df = parse_uploaded_excel(uploaded_file)
+    else:
+        df = parse_uploaded_excel("data/feedback1.xlsx")
+    return df
 
-if uploaded_file is not None:
-    df = parse_uploaded_excel(uploaded_file)
-    st.success("✅ File uploaded successfully!")
-else:
-    default_path = "data/feedback1.xlsx"
-    try:
-        df = parse_uploaded_excel(default_path)
-        st.info("📂 No file uploaded. Loaded default file automatically.")
-    except FileNotFoundError:
-        st.error("⚠️ No file uploaded and default file not found!")
-        st.stop()
+uploaded_file = st.file_uploader("Upload Excel File or XLSX File", type="xlsx")
+df = load_data(uploaded_file)
 
 # ✅ Process DataFrame in all cases (uploaded or default)
-df = clean_chat(df)
-df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-df = df.dropna(subset=['timestamp'])
+@st.cache_data
+def preprocess_data(df):
+    df = clean_chat(df)
+    df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+    df = df.dropna(subset=['timestamp'])
 
-df = add_sentiment(df, text_column='question')
-df = add_emotions(df, text_column='question')
-df = classify_message_type(df)
-
-df = extract_response_emojis(df)
+    df = add_sentiment(df, text_column='question')
+    df = add_emotions(df, text_column='question')
+    df = classify_message_type(df)
+    df = extract_response_emojis(df)
+    return df
+df = preprocess_data(df)
 
 st.success("✅ File processed successfully!")
 
 
 # --- Sidebar Filters (Optimized with Caching) ---
+with st.sidebar:
+    st.header("📌 Filters")
+    min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
+    types = df['type'].dropna().unique().tolist()
+    users = sorted(df['user'].dropna().unique())
 
-# ================== Sidebar Filters ==================
-st.sidebar.header("📌 Filters")
-unique_types = df['type'].dropna().unique().tolist()
-min_date, max_date = df['timestamp'].min().date(), df['timestamp'].max().date()
-all_users = sorted(df['user'].dropna().unique())
+    selected_types = st.multiselect("Message Type", types, default=types)
+    start_date, end_date = st.date_input("Date Range", [min_date, max_date])
+    search_user = st.text_input("🔍 Search User")
+    filtered_users = ['All'] + [u for u in users if search_user.lower() in u.lower()]
+    selected_user = st.selectbox("User", filtered_users)
 
-selected_types = st.sidebar.multiselect("Message Type", unique_types, default=unique_types)
-start_date, end_date = st.sidebar.date_input("📆 Date Range", [min_date, max_date])
-user_search = st.sidebar.text_input("🔍 Search User")
-filtered_users = ['All'] + [u for u in all_users if user_search.lower() in u.lower()]
-selected_user = st.sidebar.selectbox("User", filtered_users)
+@st.cache_data
+def filter_dataframe(df, start_date, end_date, selected_user, selected_types):
+    df_filtered = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
+    if selected_user != 'All':
+        df_filtered = df_filtered[df_filtered['user'] == selected_user]
+    df_filtered = df_filtered[df_filtered['type'].isin(selected_types)]
+    return df_filtered
 
-filtered_df = df[(df['timestamp'].dt.date >= start_date) & (df['timestamp'].dt.date <= end_date)]
-if selected_user != "All":
-    filtered_df = filtered_df[filtered_df['user'] == selected_user]
-filtered_df = filtered_df[filtered_df['type'].isin(selected_types)]
+filtered_df = filter_dataframe(df, start_date, end_date, selected_user, selected_types)
 
 
 # --- Brand Setup ---
