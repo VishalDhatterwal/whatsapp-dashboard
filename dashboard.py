@@ -45,6 +45,16 @@ def preprocess_data(df):
     df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
     df = df.dropna(subset=['timestamp'])
 
+    # Remove meaningless greetings/fillers
+    useless_keywords = {"hi", "Hii","hlo", "hello", "hey", "ok", "okay", "yo", "thanks", "thank you", "good morning", "good night", "bye", "yes", "no", "hmm", "nice"}
+
+    def is_useful(msg):
+        if not isinstance(msg, str) or not msg.strip():
+            return False
+        msg_clean = msg.lower().strip()
+        return not all(word in useless_keywords for word in msg_clean.split())
+
+    df = df[df['question'].apply(is_useful)]
     df = add_sentiment(df, text_column='question')
     df = add_emotions(df, text_column='question')
     df = classify_message_type(df)
